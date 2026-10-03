@@ -1,5 +1,7 @@
 # Binary Packet Inspector (Avionics)
 
+*This toolset is designed specifically to work with the [Avionics V2](https://github.com/VelR-IITT/Rocketry-Avionics) firmware developed by the **VelR Rocketry Club of IIT Tirupati**.*
+
 A versatile, multi-platform toolset designed to parse, inspect, and export binary flight logs from avionics hardware.
 
 The inspector is built around a single "Source of Truth" (`core/schema.py`) that defines the C++ structs used on the firmware. It seamlessly handles fixed-stride binary packets, decodes bit-fields (error flags, continuity states), and provides three independent ways to interact with the data.
