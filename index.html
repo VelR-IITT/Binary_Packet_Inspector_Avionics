@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Binary Packet Inspector - Web</title>
+    
+    <link rel="stylesheet" href="https://pyscript.net/releases/2023.11.1/core.css" />
+    <script type="module" src="https://pyscript.net/releases/2023.11.1/core.js"></script>
+    
+    <style>
+        :root {
+            --bg: #1e1e1e;
+            --fg: #d4d4d4;
+            --accent: #5c9bfa;
+            --panel: #252526;
+            --border: #3e3e42;
+            --hover: #2a2d2e;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--fg);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* Layout */
+        #sidebar {
+            width: 350px;
+            background-color: var(--panel);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        #main-area {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg);
+        }
+        
+        /* Sidebar Components */
+        .section {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+        h2 { margin: 0 0 0.5rem 0; font-size: 1.1rem; color: #fff; }
+        h3 { margin: 0 0 0.5rem 0; font-size: 0.95rem; color: var(--accent); }
+        
+        label { display: block; margin-bottom: 4px; font-size: 0.9rem; cursor: pointer; }
+        input[type="text"], input[type="number"] {
+            width: 100%; box-sizing: border-box; background: #333; border: 1px solid var(--border); 
+            color: white; padding: 4px; margin-bottom: 8px; border-radius: 3px;
+        }
+        button, input[type="file"]::file-selector-button {
+            width: 100%; background-color: #333; color: var(--fg); border: 1px solid var(--border);
+            padding: 6px; border-radius: 3px; cursor: pointer; margin-top: 5px;
+        }
+        button:hover { background-color: #444; }
+        .btn-primary { background-color: var(--accent); color: #000; font-weight: bold; }
+        .btn-primary:hover { background-color: #73a9fc; }
+        
+        .flex-row { display: flex; gap: 10px; }
+        .flex-row > * { flex: 1; }
+
+        /* Detail Panel */
+        #detail-pane {
+            font-family: Consolas, monospace;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            color: #9cdcfe;
+        }
+        .detail-raw { color: #dcdcaa; }
+        .detail-sub { color: #4ec9b0; margin-left: 15px; }
+
+        /* Main Table Area */
+        #info-bar {
+            padding: 0.5rem 1rem;
+            background-color: var(--panel);
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+            color: #4ec9b0;
+        }
+        #table-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            position: relative;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: Consolas, monospace;
+            font-size: 0.85rem;
+        }
+        thead {
+            position: sticky;
+            top: 0;
+            background-color: #2d2d30;
+            box-shadow: 0 1px 0 var(--border);
+        }
+        th { text-align: left; padding: 6px 10px; color: #fff; }
+        td { padding: 4px 10px; border-bottom: 1px solid #333; }
+        tr:hover { background-color: var(--hover); }
+        .selected-row { background-color: #094771 !important; }
+
+        /* Hidden class */
+        .hidden { display: none !important; }
+    </style>
+
+    <py-config>
+        [[fetch]]
+        from = "core"
+        to_folder = "core"
+        files = ["__init__.py", "schema.py", "parser.py", "report.py", "exporter.py"]
+    </py-config>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <div id="sidebar">
+        <div class="section">
+            <h2>Avionics Inspector</h2>
+            <div id="status" style="color: var(--accent); font-size:0.9rem; margin-bottom:10px;">Loading Python...</div>
+            <input type="file" id="file-upload" accept=".bin" disabled>
+        </div>
+
+        <div class="section">
+            <h3>Filters</h3>
+            <div id="type-filters">
+                <!-- Checkboxes injected by Python -->
+            </div>
+            
+            <div style="margin-top: 10px;">
+                <label>Order:</label>
+                <label style="display:inline; margin-right:10px;"><input type="radio" name="order" value="packet" checked> Packet</label>
+                <label style="display:inline;"><input type="radio" name="order" value="chrono"> Chrono</label>
+            </div>
+
+            <div style="margin-top: 10px;" class="flex-row">
+                <div>
+                    <label>Time Start (ms)</label>
+                    <input type="number" id="time-start">
+                </div>
+                <div>
+                    <label>Time End (ms)</label>
+                    <input type="number" id="time-end">
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Export CSV</h3>
+            <div class="flex-row">
+                <label style="display:inline; margin-right:10px;"><input type="radio" name="format" value="flat" checked> Flat</label>
+                <label style="display:inline;"><input type="radio" name="format" value="merged"> Merged</label>
+            </div>
+            
+            <div id="align-container" class="hidden" style="margin-top:5px;">
+                <label>Align to Type:</label>
+                <select id="align-combo" style="width:100%; padding:4px; background:#333; color:white; border:1px solid var(--border);">
+                    <option value="IMU" selected>IMU</option>
+                    <option value="BARO">BARO</option>
+                    <option value="ADXL">ADXL</option>
+                    <option value="GPS_POS">GPS_POS</option>
+                    <option value="GPS_VEL">GPS_VEL</option>
+                    <option value="GPS_ACC">GPS_ACC</option>
+                    <option value="GPS_LOW">GPS_LOW</option>
+                    <option value="BOARD">BOARD</option>
+                </select>
+            </div>
+
+            <div style="margin-top:10px;">
+                <label>Export Name:</label>
+                <input type="text" id="export-filename" value="export.csv">
+                <button id="btn-export" class="btn-primary">Download CSV</button>
+            </div>
+        </div>
+
+        <div class="section" style="flex-grow: 1;">
+            <h3>Record Details</h3>
+            <div id="detail-pane">Click any row in the table to view decoded fields.</div>
+        </div>
+    </div>
+
+    <!-- MAIN AREA -->
+    <div id="main-area">
+        <div id="info-bar">No file loaded.</div>
+        <div id="table-container">
+            <table id="record-table">
+                <thead>
+                    <tr>
+                        <th style="width: 60px;">Seq</th>
+                        <th style="width: 90px;">Time (ms)</th>
+                        <th style="width: 100px;">Type</th>
+                        <th>Fields</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-records">
+                    <!-- Rows injected by Python -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script type="py" src="./web_app.py"></script>
+
+</body>
+</html>

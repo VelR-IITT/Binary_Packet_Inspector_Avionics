@@ -1,0 +1,4 @@
+# Python stdlib only — no extra deps for core parser/CLI
+# Optional: install for GUI and merged-mode export
+dearpygui>=1.11.0
+pandas>=2.0.0        # optional: only needed for --format merged

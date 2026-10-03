@@ -1,0 +1,13 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Test data / output files
+tests/*.bin
+tests/*.csv
+*.csv
+
+# OS generated files
+.DS_Store
+Thumbs.db
