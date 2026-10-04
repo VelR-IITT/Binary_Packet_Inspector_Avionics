@@ -123,8 +123,19 @@ def format_field_value(field_name, value):
     if field_name == "headAcc": return f"{value} ({value / 1e5:.2f} deg)"
     return str(value)
 
-def show_record_details(seq: int):
+def show_record_details(seq: int | None):
     state.selected_seq = seq
+    
+    if seq is None:
+        if state.report:
+            from core.report import format_report
+            rep_str = format_report(state.report)
+            document.getElementById("detail-pane").innerText = rep_str
+        else:
+            document.getElementById("detail-pane").innerHTML = "Click any row in the table to view decoded fields."
+        rebuild_table()
+        return
+
     # Find record
     rec = next((r for r in state.parse_result.records if r.seq == seq), None)
     if not rec: return
@@ -193,7 +204,7 @@ async def on_file_upload(event):
         update_default_export_name()
         
         document.getElementById("status").innerText = f"Loaded {result.good_count} records."
-        document.getElementById("detail-pane").innerHTML = "Click any row in the table to view decoded fields."
+        show_record_details(None)
         
     except Exception as e:
         document.getElementById("status").innerText = f"Error: {str(e)}"
@@ -204,7 +215,10 @@ def on_table_click(event):
         target = getattr(target, "parentElement", None)
     if target and target.hasAttribute("data-seq"):
         seq = int(target.getAttribute("data-seq"))
-        show_record_details(seq)
+        if state.selected_seq == seq:
+            show_record_details(None)
+        else:
+            show_record_details(seq)
 
 def on_type_change(event):
     tname = event.target.value

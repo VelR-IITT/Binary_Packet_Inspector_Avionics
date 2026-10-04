@@ -215,7 +215,9 @@ def load_file_thread(path: str):
             f"{result.good_count} records loaded"
             + (f"  |  {result.bad_count} bad" if result.bad_count else "")
         )
+        state.selected_record = None
         _rebuild_table()
+        _rebuild_detail_panel(None)
         _refresh_info_bar()
         _update_default_export_name()
     except Exception as exc:
@@ -292,15 +294,29 @@ def _refresh_info_bar():
 # ---------------------------------------------------------------------------
 
 def _on_row_click(sender, app_data, user_data: Record):
-    state.selected_record = user_data
-    _rebuild_detail_panel(user_data)
+    if state.selected_record and state.selected_record.seq == user_data.seq:
+        # Deselect if clicking the same row again
+        state.selected_record = None
+        _rebuild_detail_panel(None)
+    else:
+        state.selected_record = user_data
+        _rebuild_detail_panel(user_data)
 
 
-def _rebuild_detail_panel(rec: Record):
-    """Repopulate the detail panel with decoded fields for the selected record."""
+def _rebuild_detail_panel(rec: Record | None):
+    """Repopulate the detail panel with decoded fields or the global report if none selected."""
     if not dpg.does_item_exist(TAG_DETAIL_GROUP):
         return
     dpg.delete_item(TAG_DETAIL_GROUP, children_only=True)
+
+    if rec is None:
+        if state.report:
+            # Display the flight report
+            rep_str = format_report(state.report)
+            dpg.add_text("  " + rep_str.replace("\n", "\n  "), color=(160, 200, 255, 255), parent=TAG_DETAIL_GROUP)
+        else:
+            dpg.add_text("  Click a row to inspect a record, or click an active row to deselect and view this report.", color=(120, 120, 140, 255), parent=TAG_DETAIL_GROUP)
+        return
 
     col = type_colour(rec.type_name)
 
