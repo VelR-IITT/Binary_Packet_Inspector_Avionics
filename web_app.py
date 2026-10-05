@@ -40,8 +40,12 @@ class AppState:
         
         self.view = []
         self.selected_seq = None
+        
+        self.page = 0
+        self.page_size = 2000
 
     def recompute_view(self):
+        self.page = 0
         if not self.parse_result:
             self.view = []
             return
@@ -77,9 +81,13 @@ def rebuild_table():
         tbody.innerHTML = ""
         return
         
+    start_idx = state.page * state.page_size
+    end_idx = start_idx + state.page_size
+    page_records = state.view[start_idx:end_idx]
+        
     html_parts = []
     # Build HTML string (very fast in browser)
-    for rec in state.view:
+    for rec in page_records:
         col = TYPE_COLOURS.get(rec.type_name, COL_UNKNOWN)
         fields_str = " ".join([f"{k}={v}" for k, v in list(rec.raw_fields.items())[:6]])
         if len(rec.raw_fields) > 6:
@@ -98,17 +106,22 @@ def rebuild_table():
     tbody.innerHTML = "".join(html_parts)
 
 def refresh_info_bar():
-    bar = document.getElementById("info-bar")
+    bar = document.getElementById("info-text")
     if not state.report:
         bar.innerText = "No file loaded."
         return
     r = state.report
     v_len = len(state.view)
+    
+    max_page = max(0, (len(state.view) - 1) // state.page_size)
+    page_text = f"Page {state.page + 1} of {max_page + 1} ({v_len} records shown)"
+    
     text = (
-        f"{v_len} records shown (out of {r.good_count}) | "
+        f"{r.good_count} total records | "
         f"{r.bad_count} bad | "
         f"{r.out_of_order_count} out-of-order | "
-        f"Range: {r.time_start_ms} - {r.time_end_ms} ms"
+        f"Range: {r.time_start_ms} - {r.time_end_ms} ms | "
+        f"{page_text}"
     )
     bar.innerText = text
 
@@ -220,6 +233,19 @@ def on_table_click(event):
         else:
             show_record_details(seq)
 
+def on_page_prev(event):
+    if state.page > 0:
+        state.page -= 1
+        rebuild_table()
+        refresh_info_bar()
+
+def on_page_next(event):
+    max_page = max(0, (len(state.view) - 1) // state.page_size)
+    if state.page < max_page:
+        state.page += 1
+        rebuild_table()
+        refresh_info_bar()
+
 def on_type_change(event):
     tname = event.target.value
     state.type_enabled[tname] = event.target.checked
@@ -328,5 +354,9 @@ for el in document.getElementsByName("format"):
     
 document.getElementById("align-combo").addEventListener("change", create_proxy(on_align_change))
 document.getElementById("btn-export").addEventListener("click", create_proxy(on_export))
+
+# Bind pagination
+document.getElementById("btn-prev").addEventListener("click", create_proxy(on_page_prev))
+document.getElementById("btn-next").addEventListener("click", create_proxy(on_page_next))
 
 document.getElementById("status").innerText = "Ready. Select a .bin file."

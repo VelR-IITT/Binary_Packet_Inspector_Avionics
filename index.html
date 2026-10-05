@@ -189,7 +189,11 @@
 
     <!-- MAIN AREA -->
     <div id="main-area">
-        <div id="info-bar">No file loaded.</div>
+        <div id="info-bar" style="display: flex; align-items: center; gap: 15px;">
+            <button id="btn-prev" style="width: auto; margin: 0; padding: 4px 10px;">&lt; Prev Page</button>
+            <button id="btn-next" style="width: auto; margin: 0; padding: 4px 10px;">Next Page &gt;</button>
+            <span id="info-text">No file loaded.</span>
+        </div>
         <div id="table-container">
             <table id="record-table">
                 <thead>

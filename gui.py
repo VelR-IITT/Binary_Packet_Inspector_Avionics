@@ -86,6 +86,10 @@ class AppState:
         self.align_type:      str              = "IMU"
         self.include_decoded: bool             = True
 
+        # Pagination
+        self.page:            int              = 0
+        self.page_size:       int              = 2000
+
         # selected record
         self.selected_seq:    int | None       = None
         self.selected_record: Record | None    = None
@@ -96,6 +100,7 @@ class AppState:
 
     def recompute_view(self):
         """Re-apply current filters and ordering to the parsed records."""
+        self.page = 0
         if not self.parse_result:
             self.view = []
             return
@@ -253,7 +258,11 @@ def _rebuild_table():
     # Delete all children (rows) of the table
     dpg.delete_item(TAG_RECORD_TABLE, children_only=True, slot=1)
 
-    for rec in state.view:
+    start_idx = state.page * state.page_size
+    end_idx = start_idx + state.page_size
+    page_records = state.view[start_idx:end_idx]
+
+    for rec in page_records:
         # Build a compact field summary string
         fields_str = "  ".join(f"{k}={v}" for k, v in list(rec.raw_fields.items())[:6])
         if len(rec.raw_fields) > 6:
@@ -279,12 +288,16 @@ def _refresh_info_bar():
     if not state.report or not dpg.does_item_exist(TAG_INFO_BAR):
         return
     r = state.report
+    
+    max_page = max(0, (len(state.view) - 1) // state.page_size)
+    page_text = f"Page {state.page + 1} of {max_page + 1}  ({len(state.view)} records shown)"
+    
     text = (
-        f"  {r.good_count} records"
+        f"  {r.good_count} total"
         f"  |  {r.bad_count} bad"
         f"  |  {r.out_of_order_count} out-of-order (max jitter {r.max_jitter_ms} ms)"
         f"  |  {r.time_start_ms} ms -> {r.time_end_ms} ms  ({r.duration_ms / 1000:.1f} s)"
-        f"  |  RECORD_SIZE={RECORD_SIZE} B"
+        f"  |  {page_text}"
     )
     dpg.set_value(TAG_INFO_BAR, text)
 
@@ -466,6 +479,20 @@ def _on_export_csv():
 def _on_reload():
     if state.filepath:
         threading.Thread(target=load_file_thread, args=(state.filepath,), daemon=True).start()
+
+
+def _on_page_prev():
+    if state.page > 0:
+        state.page -= 1
+        _rebuild_table()
+        _refresh_info_bar()
+
+def _on_page_next():
+    max_page = max(0, (len(state.view) - 1) // state.page_size)
+    if state.page < max_page:
+        state.page += 1
+        _rebuild_table()
+        _refresh_info_bar()
 
 
 # ---------------------------------------------------------------------------
@@ -666,8 +693,11 @@ def build_ui():
 
         dpg.add_separator()
 
-        # === INFO BAR ===
-        dpg.add_text("  No file loaded.", tag=TAG_INFO_BAR, color=(120, 160, 120, 255))
+        # === PAGINATION & INFO BAR ===
+        with dpg.group(horizontal=True):
+            dpg.add_button(label=" < Prev Page ", callback=_on_page_prev)
+            dpg.add_button(label=" Next Page > ", callback=_on_page_next)
+            dpg.add_text("  No file loaded.", tag=TAG_INFO_BAR, color=(120, 160, 120, 255))
 
     # ---- viewport ----
     dpg.create_viewport(
