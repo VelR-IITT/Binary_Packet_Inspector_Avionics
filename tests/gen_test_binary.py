@@ -101,7 +101,8 @@ def make_gps_low(t_ms: int) -> bytes:
 
 def make_board(t_ms: int) -> bytes:
     phase = t_ms / 1000.0
-    temp        = 35
+    cmd         = 0
+    cmd_param   = 0
     v_batt      = 120          # raw ADC-ish value
     # state: flight_state in bits[7:5], numSV in bits[4:0]
     flight_state = 2 if phase < 3 else (3 if phase < 10 else (4 if phase < 12 else 5))
@@ -110,9 +111,10 @@ def make_board(t_ms: int) -> bytes:
     # error_code: everything nominal except simulate a brief BARO error early on
     baro_err    = 1 if phase < 0.5 else 0
     error_code  = baro_err << 1
+    flags       = 0b00000100 # LOG_ENABLED
     pyro_state  = 0b00000101   # pyro1 continuity + triggered after boost
     rssi        = 200
-    fields = struct.pack("<BBBBBB", temp, v_batt, state, error_code, pyro_state, rssi)
+    fields = struct.pack("<BBBBBBBB", cmd, cmd_param, v_batt, state, error_code, flags, pyro_state, rssi)
     return _pack_record(0x08, t_ms, fields)
 
 

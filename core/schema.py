@@ -68,8 +68,8 @@ RECORD_TYPES: Dict[int, Dict[str, Any]] = {
     },
     0x08: {
         'name':   'BOARD',
-        'fmt':    '<BBBBBB',          # 6 × uint8 = 6 bytes
-        'fields': ['temp', 'v_batt', 'state', 'error_code', 'pyro_state', 'rssi'],
+        'fmt':    '<BBBBBBBB',          # 8 × uint8 = 8 bytes
+        'fields': ['cmd', 'cmd_param', 'v_batt', 'state', 'error_code', 'board_flags', 'pyro_state', 'rssi'],
     },
 }
 
@@ -98,8 +98,8 @@ BIT_FIELDS: Dict[str, Dict[str, Any]] = {
             2: 'GPS_ERROR',
             3: 'GSM_ERROR',
             4: 'SD_ERROR',
-            5: 'LOG_ENABLED',
-            6: 'CMD_RECEIVED',
+            5: 'FLASH_ERROR',
+            6: 'FILE_TRANSFER_ERROR',
             7: 'ACK_RECEIVED',
         },
     },
@@ -137,14 +137,44 @@ BIT_FIELDS: Dict[str, Dict[str, Any]] = {
         'type': 'bitmask',
         'bits': {
             0: 'PYRO1_CONT',
-            1: 'PYRO1_TRIG',
-            2: 'PYRO2_CONT',
-            3: 'PYRO2_TRIG',
-            4: 'PYRO3_CONT',
-            5: 'PYRO3_TRIG',
-            6: 'PYRO4_CONT',
+            1: 'PYRO2_CONT',
+            2: 'PYRO3_CONT',
+            3: 'PYRO4_CONT',
+            4: 'PYRO1_TRIG',
+            5: 'PYRO2_TRIG',
+            6: 'PYRO3_TRIG',
             7: 'PYRO4_TRIG',
         },
+    },
+
+    # BOARD.cmd — command types
+    'cmd': {
+        'type': 'enum',
+        'values': {
+            0x00: 'CMD_NONE',
+            0x01: 'CMD_LED_BLINK',
+            0x02: 'CMD_LED_OFF',
+            0x03: 'CMD_LOG_START',
+            0x04: 'CMD_LOG_STOP',
+            0x05: 'CMD_SET_CON_MODE',
+            0x06: 'CMD_SET_PYRO_MODE',
+            0x07: 'CMD_TRIG_PYRO',
+        }
+    },
+
+    # BOARD.board_flags — status flags
+    'board_flags': {
+        'type': 'bitmask',
+        'bits': {
+            0: 'FILE_TRANSFER_IN_PROGRESS',
+            1: 'FILE_TRANSFERRED',
+            2: 'LOG_ENABLED',
+            3: 'CMD_RECEIVED_LAST_CYCLE',
+            4: 'DATA_QUE_PKT_DROP',
+            5: 'SD_QUE_PKT_DROP',
+            6: 'GPS_TIME_LOCK',
+            7: 'GPS_POS_LOCK',
+        }
     },
 
     # GPS_LOW.valid — u-blox validity flags
